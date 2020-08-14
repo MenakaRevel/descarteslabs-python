@@ -60,8 +60,7 @@ class TestDotDict(unittest.TestCase):
     def test_repr(self):
         d = DotDict(long=list(range(100)))
         # long lists should be truncated with "..."
-        with pytest.raises((SyntaxError, ValueError)):
-            ast.literal_eval(repr(d))
+        assert '...' in repr(d)
 
         d = DotDict({i: i for i in range(100)})
         # a long top-level dict should not be truncated

@@ -1646,13 +1646,20 @@ def _serialize_function(function):
     # Note; In Py3 cloudpickle and base64 handle bytes objects only, so we need to
     # decode it into a string to be able to json dump it again later.
     cp_version = getattr(cloudpickle, "__version__", None)
-    if cp_version is None or cp_version != "0.4.0":
+    py_version = sys.version_info
+    if ((py_version.major < 3 or py_version.minor < 8)
+        and (cp_version is None or cp_version != "0.4.0")):
         warn(
             (
                 "You must use version 0.4.0 of cloudpickle for compatibility with the Tasks client. {} found."
             ).format(cp_version)
         )
-
+    elif cp_version is None or cp_version != "1.5.0":
+        warn(
+            (
+                "You must use version 1.5.0 of cloudpickle for compatibility with the Tasks client. {} found."
+            ).format(cp_version)
+        )
     encoded_bytes = base64.b64encode(cloudpickle.dumps(function))
     return encoded_bytes.decode("ascii")
 
