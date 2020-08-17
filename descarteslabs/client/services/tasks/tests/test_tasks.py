@@ -235,7 +235,8 @@ class TasksPackagingTest(ClientTestCase):
         curdir = os.getcwd()
         tempdir = None
         sys_path = sys.path
-        sys_modules = sys.modules.copy()
+        sys_modules = sys.modules
+        sys.modules = sys.modules.copy()
 
         try:
             # Create a temp directory to extract the sources into
@@ -257,7 +258,7 @@ class TasksPackagingTest(ClientTestCase):
             assert expected_return_value == value
         finally:
             # Restore environment
-            sys.modules.update(sys_modules)
+            sys.modules = sys_modules
             os.chdir(curdir)
             sys.path = sys_path
 
@@ -473,7 +474,7 @@ class TasksPackagingTest(ClientTestCase):
         try:
             with ZipFile(zf) as arc:
                 with pytest.raises(ImportError):
-                    self.call_function(arc, self.LOCAL_STRING + self.GLOBAL_STRING)
+                    self.call_function(arc, None)
         finally:
             if os.path.exists(zf):
                 os.remove(zf)
