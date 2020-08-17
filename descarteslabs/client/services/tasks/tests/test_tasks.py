@@ -237,7 +237,9 @@ class TasksPackagingTest(ClientTestCase):
         sys_path = sys.path
         # python 3.8 ends up with funky imports of the core library if you remove
         # everything; we only depend on descarteslabs being removed.
-        sys_modules = {k: v for k, v in sys.modules.items() if k.startswith("descarteslabs")}
+        sys_modules = {
+            k: v for k, v in sys.modules.items() if k.startswith("descarteslabs")
+        }
 
         try:
             # Create a temp directory to extract the sources into
