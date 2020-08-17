@@ -235,8 +235,9 @@ class TasksPackagingTest(ClientTestCase):
         curdir = os.getcwd()
         tempdir = None
         sys_path = sys.path
-        sys_modules = sys.modules
-        sys.modules = sys.modules.copy()
+        # python 3.8 ends up with funky imports of the core library if you remove
+        # everything; we only depend on descarteslabs being removed.
+        sys_modules = {k: v for k, v in sys.modules.items() if k.startswith("descarteslabs")}
 
         try:
             # Create a temp directory to extract the sources into
@@ -246,7 +247,9 @@ class TasksPackagingTest(ClientTestCase):
             # Set the env to only look at the temp directory
             os.chdir(tempdir)
             sys.path = ["{}/{}".format(tempdir, DIST)]
-            sys.modules.clear()
+            # remove descarteslabs modules
+            for k in sys_modules:
+                sys.modules.pop(k)
 
             # Import the module using a clean environment
             env = runpy.run_module(os.path.splitext(ENTRYPOINT)[0])
@@ -258,7 +261,7 @@ class TasksPackagingTest(ClientTestCase):
             assert expected_return_value == value
         finally:
             # Restore environment
-            sys.modules = sys_modules
+            sys.modules.update(sys_modules)
             os.chdir(curdir)
             sys.path = sys_path
 
