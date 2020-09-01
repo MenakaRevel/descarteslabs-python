@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cloudpickle
+import pickle
 import json
 import time
 
@@ -139,24 +139,31 @@ class FutureTask(object):
             return None
 
         if not self._is_return_value_loaded:
-            return_value = Storage().get(
-                self._task_result.result_key, storage_type="result"
-            )
-            result_type = self._task_result.get("result_type", ResultType.LEGACY_PICKLE)
+            if self._task_result.result_size_bytes > 0:
+                return_value = Storage().get(
+                    self._task_result.result_key, storage_type="result"
+                )
+                result_type = self._task_result.get(
+                    "result_type", ResultType.LEGACY_PICKLE
+                )
 
-            if result_type == ResultType.LEGACY_PICKLE:
-                return_value = cloudpickle.loads(return_value)
+                if result_type == ResultType.LEGACY_PICKLE:
+                    return_value = pickle.loads(return_value)
 
-                if isinstance(return_value, dict):
-                    # For backwards-compatibility reasons, for legacy pickles the result is
-                    # wrapped in a dictionary.
-                    self._return_value = return_value["result"]
+                    if isinstance(return_value, dict):
+                        # For backwards-compatibility reasons, for legacy pickles the result is
+                        # wrapped in a dictionary.
+                        self._return_value = return_value["result"]
+                    else:
+                        self._return_value = return_value
+                elif result_type == ResultType.JSON:
+                    self._return_value = json.loads(return_value.decode("utf-8"))
                 else:
-                    self._return_value = return_value
-            elif result_type == ResultType.JSON:
-                self._return_value = json.loads(return_value.decode("utf-8"))
+                    raise RuntimeError(
+                        "Unknown result type: %s - update your tasks client"
+                    )
             else:
-                raise RuntimeError("Unknown result type: %s - update your tasks client")
+                self._return_value = None
 
             self._is_return_value_loaded = True
 

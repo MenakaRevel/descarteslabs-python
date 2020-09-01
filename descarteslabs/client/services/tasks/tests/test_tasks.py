@@ -75,8 +75,11 @@ class ClientTestCase(unittest.TestCase):
 
 
 class TasksTest(ClientTestCase):
+    @pytest.mark.skipif(
+        sys.version_info >= (3, 8), reason="requires python3.7 or lower"
+    )
     @responses.activate
-    @mock.patch.object(sys.modules["cloudpickle"], "__version__", "0.3.0")
+    @mock.patch.object(sys.modules.get("cloudpickle", {}), "__version__", "0.3.0")
     def test_new_group(self):
         def f():
             return True
@@ -93,8 +96,11 @@ class TasksTest(ClientTestCase):
             assert "foo" == group.id
             assert 1 == len(w)
 
+    @pytest.mark.skipif(
+        sys.version_info >= (3, 8), reason="requires python3.7 or lower"
+    )
     @responses.activate
-    @mock.patch.object(sys.modules["cloudpickle"], "__version__", None)
+    @mock.patch.object(sys.modules.get("cloudpickle", {}), "__version__", None)
     def test_cloudpickle_not_found(self):
         def f():
             return True
@@ -287,6 +293,42 @@ class TasksPackagingTest(ClientTestCase):
                 "task-image",
                 include_data=[self.DATA_FILE_PATH],
                 include_modules=[self.TEST_MODULE],
+            )
+
+        body = responses.calls[0].request.body.decode(
+            "utf-8"
+        )  # prior to 3.6, json does not accept bytes
+        call_args = json.loads(body)
+        bundle = responses.calls[1].request.body
+        try:
+            with ZipFile(bundle.name, mode="r") as zf:
+                assert len(zf.namelist()) > 0
+        finally:
+            os.remove(bundle.name)
+
+        assert call_args["function_type"] == FunctionType.PY_BUNDLE
+
+    @pytest.mark.skipif(
+        sys.version_info < (3, 8), reason="requires python3.8 or higher"
+    )
+    @responses.activate
+    def test_new_group_always_bundle(self):
+        # the skipif above doesn't work in drone
+        if sys.version_info < (3, 8):
+            return
+
+        def foo():
+            pass
+
+        upload_url = "https://storage.google.com/upload/b/dl-pex-storage/o/12345343"
+        resp_json = {"id": 12345343, "upload_url": upload_url}
+        self.mock_response(responses.POST, status=201, json=resp_json)
+        responses.add(responses.PUT, upload_url, status=200)
+        with mock.patch(
+            "os.remove"
+        ):  # Don't delete bundle so we can read it back below
+            self.client.new_group(
+                foo, "task-image",
             )
 
         body = responses.calls[0].request.body.decode(

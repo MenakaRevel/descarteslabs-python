@@ -89,7 +89,6 @@ def do_setup():
             "backports-datetime-fromisoformat>=1.0.0;python_version<'3.7'",
             "cachetools>=2.0.1",
             "cloudpickle==0.4.0;python_version<'3.8'",
-            "cloudpickle==1.5.0;python_version>='3.8'",
             "geojson>=2.5.0",
             "grpcio>=1.16.1,<2",
             "protobuf==3.11.2,<4",
