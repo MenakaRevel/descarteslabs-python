@@ -70,6 +70,12 @@ CREATE_NAMESPACE_DEPRECATION_MESSAGE = (
     "Manually creating a namespace is no longer required."
 )
 
+PICKLE_DEPRECATION_MESSAGE = (
+    "Support for non-bundled task functions has been deprecated "
+    "and will be removed in a future version. Please correct the "
+    "following error to enable bundling: {}"
+)
+
 
 class GroupTerminalException(Exception):
     pass
@@ -236,23 +242,23 @@ class Tasks(Service):
 
         bundle_path = None
         try:
-            if (
-                sys.version_info >= (3, 8)
-                or include_data is not None
-                or include_modules is not None
-                or requirements is not None
-            ):
+            try:
                 bundle_path = self._build_bundle(
                     function, include_data, include_modules, requirements
                 )
                 payload.update({"function_type": FunctionType.PY_BUNDLE})
-            else:
+            except (ValueError, BoundGlobalError) as e:
+                # deprecated support for pickled functions
+                # to be removed in a future release
+                if sys.version_info >= (3, 8):
+                    raise
                 payload.update(
                     {
                         "function": _serialize_function(function),
                         "function_type": FunctionType.PY_PICKLE,
                     }
                 )
+                warn(PICKLE_DEPRECATION_MESSAGE.format(e), DeprecationWarning)
 
             try:
                 r = self.session.post("/groups", json=payload)
