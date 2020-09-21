@@ -250,7 +250,7 @@ class Tasks(Service):
             except (ValueError, BoundGlobalError) as e:
                 # deprecated support for pickled functions
                 # to be removed in a future release
-                if sys.version_info >= (3, 8):
+                if include_modules or include_data or requirements:
                     raise
                 payload.update(
                     {
@@ -258,7 +258,7 @@ class Tasks(Service):
                         "function_type": FunctionType.PY_PICKLE,
                     }
                 )
-                warn(PICKLE_DEPRECATION_MESSAGE.format(e), DeprecationWarning)
+                warn(PICKLE_DEPRECATION_MESSAGE.format(e), FutureWarning)
 
             try:
                 r = self.session.post("/groups", json=payload)
@@ -1655,14 +1655,21 @@ def as_completed(tasks, show_progress=True):
 def _serialize_function(function):
     # Note; In Py3 cloudpickle and base64 handle bytes objects only, so we need to
     # decode it into a string to be able to json dump it again later.
-    # cloudpickle no longer supported with python >= 3.8
     cp_version = getattr(cloudpickle, "__version__", None)
-    if cp_version is None or cp_version != "0.4.0":
-        warn(
-            (
-                "You must use version 0.4.0 of cloudpickle for compatibility with the Tasks client. {} found."
-            ).format(cp_version)
-        )
+    if sys.version_info < (3, 8, 0):
+        if cp_version is None or cp_version != "0.4.0":
+            warn(
+                (
+                    "You must use version 0.4.0 of cloudpickle for compatibility with the Tasks client. {} found."
+                ).format(cp_version)
+            )
+    else:
+        if cp_version is None or cp_version != "1.6.0":
+            warn(
+                (
+                    "You must use version 1.6.0 of cloudpickle for compatibility with the Tasks client. {} found."
+                ).format(cp_version)
+            )
     encoded_bytes = base64.b64encode(cloudpickle.dumps(function))
     return encoded_bytes.decode("ascii")
 

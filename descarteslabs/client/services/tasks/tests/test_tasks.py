@@ -82,7 +82,8 @@ class TasksTest(ClientTestCase):
     @mock.patch.object(sys.modules.get("cloudpickle", {}), "__version__", "0.3.0")
     def test_new_group(self):
         def f():
-            return True
+            # force pickling
+            return sys.version_info
 
         self.mock_response(
             responses.POST,
@@ -94,7 +95,8 @@ class TasksTest(ClientTestCase):
         with warnings.catch_warnings(record=True) as w:
             group = self.client.new_group(f, "task-image")
             assert "foo" == group.id
-            assert 1 == len(w)
+            assert 2 == len(w)
+            assert "cloudpickle" in str(w[0].message)
 
     @pytest.mark.skipif(
         sys.version_info >= (3, 8), reason="requires python3.7 or lower"
@@ -103,12 +105,14 @@ class TasksTest(ClientTestCase):
     @mock.patch.object(sys.modules.get("cloudpickle", {}), "__version__", None)
     def test_cloudpickle_not_found(self):
         def f():
-            return True
+            # force pickling
+            return sys.version_info
 
         self.mock_response(responses.POST, {}, status=201)
         with warnings.catch_warnings(record=True) as w:
             group = self.client.new_group(f, "task-image")
-            assert 1 == len(w)
+            assert 2 == len(w)
+            assert "cloudpickle" in str(w[0].message)
 
     @responses.activate
     def test_iter_groups(self):
@@ -308,15 +312,8 @@ class TasksPackagingTest(ClientTestCase):
 
         assert call_args["function_type"] == FunctionType.PY_BUNDLE
 
-    @pytest.mark.skipif(
-        sys.version_info < (3, 8), reason="requires python3.8 or higher"
-    )
     @responses.activate
-    def test_new_group_always_bundle(self):
-        # the skipif above doesn't work in drone
-        if sys.version_info < (3, 8):
-            return
-
+    def test_new_group_default_bundle(self):
         def foo():
             pass
 
@@ -548,9 +545,10 @@ class TasksPackagingTest(ClientTestCase):
 
     def test_requirements_string_file(self):
         good_requirements = os.path.join(self.TEST_DATA_PATH, "good_requirements.txt")
-        assert open(good_requirements).read() == self.client._requirements_string(
-            good_requirements
-        )
+        with open(good_requirements) as requirements:
+            assert requirements.read() == self.client._requirements_string(
+                good_requirements
+            )
 
     def test_requirements_string_bad(self):
         with pytest.raises(ValueError):
